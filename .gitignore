@@ -4,8 +4,6 @@ node_modules/
 .pnp.*
 
 # Environment
-.env
-.env.local
 .env.*.local
 
 # Next.js
@@ -26,7 +24,6 @@ contracts/target/
 
 # IDE
 .idea/
-.vscode/
 
 # Local working notes
 .local/
@@ -39,3 +36,7 @@ apps/web/test-results/
 # Test snapshots
 contracts/**/test_snapshots/
 .vercel
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+config.bat
