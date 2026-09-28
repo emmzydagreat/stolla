@@ -9,9 +9,9 @@
   "scripts": {
     "check:workspace": "node scripts/check-workspace-layout.mjs",
     "predev": "npm run check:workspace",
-    "dev": "npm run dev --workspace=web",
+    "dev": "node api.js && npm run dev --workspace=web",
     "prebuild": "npm run check:workspace",
-    "build": "npm run build --workspace=web",
+    "build": "node api.js && npm run build --workspace=web",
     "lint": "npm run lint --workspace=web",
     "clean": "node scripts/clean.mjs",
     "typecheck": "npm run typecheck --workspace=web",
