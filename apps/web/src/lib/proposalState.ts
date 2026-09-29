@@ -27,22 +27,22 @@ export const PROPOSAL_STATE_ORDER: ProposalState[] = [
 /**
  * States in which a proposal can be canceled by the proposer.
  */
-export const CANCELABLE_PROPOSAL_STATES: ProposalState[] = [
+export const CANCELLABLE_PROPOSAL_STATES: ReadonlySet<ProposalState> = new Set([
   ProposalState.Pending,
   ProposalState.Active,
-];
+]);
 
 /**
- * States in which a proposal can be executed.
+ * States in which a proposal can be executed (permissionless).
  */
-export const EEXCUTABLE_PROPOSAL_STATES: ProposalState[] = [
+export const EXECUTABLE_PROPOSAL_STATES: ReadonlySet<ProposalState> = new Set([
   ProposalState.Succeeded,
-];
+]);
 
 export function isProposalCancellable(state: ProposalState): boolean {
-  return CANCELABLE_PROPOSAL_STATES.includes(state);
+  return CANCELLABLE_PROPOSAL_STATES.has(state);
 }
 
 export function isProposalExecutable(state: ProposalState): boolean {
-  return EEXCUTABLE_PROPOSAL_STATES.includes(state);
+  return EXECUTABLE_PROPOSAL_STATES.has(state);
 }

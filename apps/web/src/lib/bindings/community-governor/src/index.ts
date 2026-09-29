@@ -1,5 +1,4 @@
 import { Buffer } from "buffer";
-import { keccak256 } from "@stellar/stellar-sdk";
 import { Address } from "@stellar/stellar-sdk";
 import {
   AssembledTransaction,
@@ -32,36 +31,6 @@ if (typeof window !== "undefined") {
 }
 
 
-
-/**
- * Computes the proposal ID for a community governor proposal.
- *
- * The on-chain governor derives the proposal ID from the XDR-serialized
- * targets, functions, args, and description hash. Off-chain clients can
- * reproduce the description hash by hashing the raw UTF-8 bytes of the
- * description string directly.
- */
-export function computeDescriptionHash(description: string): Buffer {
-  return Buffer.from(keccak256(Buffer.from(description, "utf8")));
-}
-
-/**
- * Returns whether the given proposal state allows cancellation.
- */
-export function isCancellableState(state: ProposalState): boolean {
-  return (
-    state !== ProposalState.Canceled &&
-    state !== ProposalState.Expired &&
-    state !== ProposalState.Executed
-  );
-}
-
-/**
- * Returns whether the given proposal state allows execution.
- */
-export function isExecutableState(state: ProposalState): boolean {
-  return state === ProposalState.Succeeded;
-}
 
 
 
@@ -202,21 +171,6 @@ export enum ProposalState {
   Executed = 7,
 }
 
-/**
- * Human-readable labels for each proposal state, used by the proposal
- * detail UI to render status badges and gate action buttons.
- */
-export const ProposalStateLabel: Record<ProposalState, string> = {
-  [ProposalState.Pending]: "Pending",
-  [ProposalState.Active]: "Active",
-  [ProposalState.Defeated]: "Defeated",
-  [ProposalState.Canceled]: "Canceled",
-  [ProposalState.Succeeded]: "Succeeded",
-  [ProposalState.Queued]: "Queued",
-  [ProposalState.Expired]: "Expired",
-  [ProposalState.Executed]: "Executed",
-};
-
 
 
 
@@ -269,16 +223,13 @@ export interface Client {
 
   /**
    * Construct and simulate a cancel transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Cancels a proposal and returns its unique identifier.
+   *
+   * Only the proposer may cancel, and only while the proposal is in a
+   * cancellable state (`Pending` or `Active`).
    */
   cancel: ({targets, functions, args, description_hash, operator}: {targets: Array<string>, functions: Array<string>, args: Array<Array<any>>, description_hash: Buffer, operator: string}, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>
 
-  /**
-   * Construct and simulate an execute transaction. Returns an
-   * `AssembledTransaction` object which will have a `result` field
-   * containing the result of the simulation. If this transaction changes
-   * contract state, you will need to call `signAndSend()` on the returned
-   * object.
-   */
   /**
    * Construct and simulate a quorum transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Returns the quorum required at the given ledger.
@@ -309,6 +260,10 @@ export interface Client {
 
   /**
    * Construct and simulate a execute transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Executes a succeeded proposal and returns its unique identifier.
+   *
+   * Execution is permissionless: any account may execute a proposal once
+   * it has reached the `Succeeded` state.
    */
   execute: ({targets, functions, args, description_hash, executor}: {targets: Array<string>, functions: Array<string>, args: Array<Array<any>>, description_hash: Buffer, executor: string}, options?: MethodOptions) => Promise<AssembledTransaction<Buffer>>
 

@@ -38,113 +38,94 @@ export const GOVERNANCE_HELPERS: Record<string, string> = {
 /**
  * Proposal action availability for the community-scoped detail page.
  *
- * The current signaling Governor model exposes two mutating actions:
- *  - cancel: proposer-only, while the proposal is still cancellable.
- *  - execute: permissionless, once the proposal has succeeded.
+ * The current signaling Governor model exposes two mutating actions after voting:
+ * - cancel: proposer-only, while the proposal is still cancellable.
+ * - execute: permissionless, once the proposal has succeeded.
  *
- * This keeps the visibility matrix in one place so the UI and tests can
- * agree on what should be shown.
+ * The function is pure so the visible/hidden matrix can be unit tested
+ * without any live RPC.
  */
 
-export type GovernanceProposalState =
+export type ProposalActionState =
   | "Pending"
   | "Active"
   | "Defeated"
   | "Succeeded"
   | "Canceled"
   | "Executed"
-  | "Expired";
+  | "Queued"
+  | "Expired"
+  | unknown;
 
-export interface GovernanceActionAvailability {
-  /** Whether the current wallet may cancel the proposal. */
-  canCancel: boolean;
-  /** Whether the current wallet may execute the proposal. */
-  canExecute: boolean;
-  /** Explanation for why cancel is hidden, when it is. */
-  cancelDisabledReason: string | null;
-  /** Explanation for why execute is hidden, when it is. */
-  executeDisabledReason: string | null;
+export interface ProposalActionInput {
+  state: ProposalActionState;
+  /** Whether the connected wallet is the proposal proposer. */
+  isProposer: boolean;
+  /** Whether a wallet is connected at all. */
+  isWalletConnected: boolean;
+  /** Whether the connected wallet is on the expected network. */
+  isCorrectNetwork: boolean;
 }
 
-/**
- * States in which a proposal can still be canceled by the proposer.
- * The Governor contract allows cancellation while the proposal has not yet
- * been executed or already canceled/defeated/expired.
- */
-const CANCELLABLE_STATES: ReadonlySet<GovernanceProposalState> = new Set([
+export interface ProposalActionAvailability {
+  /** Proposer-only cancel is available and would be accepted by the contract. */
+  canCancel: boolean;
+  /** Permissionless execute is available and would be accepted by the contract. */
+  canExecute: boolean;
+  /** The action is visible but blocked because the wallet is not connected. */
+  blockedByWallet: boolean;
+  /** The action is visible but blocked because the wallet is on the wrong network. */
+  blockedByNetwork: boolean;
+  /** The action is visible but blocked because the wallet is not authorized. */
+  blockedByAuthorization: boolean;
+}
+
+const CANCELLABLE_STATES: Readonly Set<ProposalActionState> = new Set([
   "Pending",
   "Active",
-  "Succeeded",
+  "Queued",
 ]);
 
-export function isProposalCancellable(
-  state: GovernanceProposalState,
-): boolean {
+const EXECUTABLE_STATES: Readonly Set<ProposalActionState> = new Set(["Succeeded"]);
+
+export function isCancellableState(state: ProposalActionState): boolean {
   return CANCELLABLE_STATES.has(state);
 }
 
-export function isProposalExecutable(
-  state: GovernanceProposalState,
-): boolean {
-  return state === "Succeeded";
+export function isExecutableState(state: ProposalActionState): boolean {
+  return EXECUTABLE_STATES.has(state);
 }
 
-export function getGovernanceActionAvailability(params: {
-  state: GovernanceProposalState;
-  /** Connected wallet address, or null when disconnected. */
-  walletAddress?: string | null;
-  /** Address that created the proposal. */
-  proposerAddress?: string | null;
-  /** Whether the wallet is on the expected network. */
-  isCorrectNetwork?: boolean;
-}): GovernanceActionAvailability {
-  const {
-    state,
-    walletAddress = null,
-    proposerAddress = null,
-    isCorrectNetwork = true,
-  } = params;
+/**
+ * Compute the visible/enabled matrix for the proposal detail actions.
+ *
+ * Visibility releses on state and role only; connectivity and network
+ * only gate whether the visible action is currently enabled. This keeps the
+ * "non-proposers never see a working Cancel action" acceptance criterion
+ * true even when the wallet is disconnected or on the wrong network.
+ */
+export function getProposalActionAvailability(
+  input: ProposalActionInput,
+): ProposalActionAvailability {
+  const { state, isProposer, isWalletConnected, isCorrectNetwork } = input;
 
-  const walletConnected = Boolean(walletAddress);
-  const isProposer =
-    walletConnected &&
-    Boolean(proposerAddress) &&
-    walletAddress === proposerAddress;
+  const cancelVisible = isProposer && isCancellableState(state);
+  const executeVisible = isExecutableState(state);
 
-  const cancellable = isProposalCancellable(state);
-  const executable = isProposalExecutable(state);
+  const blockedByWallet = !isWalletConnected;
+  const blockedByNetwork = isWalletConnected && !isCorrectNetwork;
+  const blockedByAuthorization = false;
 
-  const canCancel = cancellable && isProposer && isCorrectNetwork;
-  const canExecute = executable && walletConnected && isCorrectNetwork;
-
-  let cancelDisabledReason: string | null = null;
-  if (!canCancel) {
-    if (!cancellable) {
-      cancelDisabledReason = `proposal is ${state.toLowerCase()}`;
-    } else if (!walletConnected) {
-      cancelDisabledReason = "wallet not connected";
-    } else if (!isCorrectNetwork) {
-      cancelDisabledReason = "wrong network";
-    } else {
-      cancelDisabledReason = "only the proposer may cancel";
-    }
-  }
-
-  let executeDisabledReason: string | null = null;
-  if (!canExecute) {
-    if (!executable) {
-      executeDisabledReason = `proposal is ${state.toLowerCase()}`;
-    } else if (!walletConnected) {
-      executeDisabledReason = "wallet not connected";
-    } else {
-      executeDisabledReason = "wrong network";
-    }
-  }
+  const canCancel =
+    cancelVisible && isWalletConnected && isCorrectNetwork;
+  const canExecute =
+    executeVisible && isWalletConnected && isCorrectNetwork;
 
   return {
     canCancel,
     canExecute,
-    cancelDisabledReason,
-    executeDisabledReason,
+    blockedByWallet: (cancelVisible || executeVisible) && blockedByWallet,
+    blockedByNetwork: (cancelVisible || executeVisible) && blockedByNetwork,
+    blockedByAuthorization,
   };
 }
