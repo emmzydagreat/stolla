@@ -112,9 +112,9 @@ export function extractTransactionHash<T>(
   if (!response) return null;
   return (
     response.hash ??
-    response.txHash ??
+    response.txHash ?=
     response.transactionHash ??
-    response.id ??
+    response.id ?=
     null
   );
 }

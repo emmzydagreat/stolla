@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isCommunityFactoryConfigured } from "@/lib/community/registry";
 import { CommunityCard } from "@/components/CommunityCard";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppLinkButton } from "@/components/ui/AppLinkButton";
@@ -12,6 +13,9 @@ import type { CommunityView } from "@/lib/community/types";
 const PAGE_SIZE = 9;
 const MAX_QUERY_LENGTH = 100;
 const MAX_PAGE = 100;
+
+const FACTORY_UNAVAILABLE_MESSAGE =
+  "Community registry is not configured. Set NEXT_PUBLIC_COMMUNITY_FACTORY_CONTRACT_ID.";
 
 type ListUrlState = { query: string; page: number };
 
@@ -49,6 +53,7 @@ export default function CommunitiesPage() {
   const [skippedRecords, setSkippedRecords] = useState(0);
   const [query, setQuery] = useState("");
   const [loadedPages, setLoadedPages] = useState(0);
+  const [factoryConfigured] = useState(() => isCommunityFactoryConfigured());
   const requestSequence = useRef(0);
   const seenIds = useRef(new Set<string>());
   const nextCursorRef = useRef<number | null>(null);
@@ -58,6 +63,13 @@ export default function CommunitiesPage() {
     async (replace: boolean, updateUrl = true) => {
       const sequence = ++requestSequence.current;
       const cursor = replace ? null : nextCursorRef.current;
+
+      if (!factoryConfigured) {
+        setLoading(false);
+        setError(FACTORY_UNAVAILABLE_MESSAGE);
+        return false;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -111,7 +123,7 @@ export default function CommunitiesPage() {
         if (sequence === requestSequence.current) setLoading(false);
       }
     },
-    [],
+    [factoryConfigured],
   );
 
   useEffect(() => {
@@ -155,6 +167,13 @@ export default function CommunitiesPage() {
     };
   }, [loadPage]);
 
+  useEffect(() => {
+    if (!factoryConfigured) {
+      setLoading(false);
+      setError(FACTORY_UNAVAILABLE_MESSAGE);
+    }
+  }, [factoryConfigured]);
+
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleCommunities = useMemo(
     () =>
@@ -187,6 +206,7 @@ export default function CommunitiesPage() {
     skippedRecords > 0 ||
     metadataFailureCount > 0 ||
     governanceFailureCount > 0;
+  const factoryUnavailable = !factoryConfigured;
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-10">
@@ -202,6 +222,7 @@ export default function CommunitiesPage() {
           href="/communities/create"
           tone="primary"
           className="shrink-0"
+          aria-disabled={factoryUnavailable}
         >
           Create a community
         </AppLinkButton>
@@ -292,14 +313,16 @@ export default function CommunitiesPage() {
           <p className="mt-2 break-words text-sm text-rose-200 [overflow-wrap:anywhere]">
             {error}
           </p>
-          <AppButton
-            tone="danger"
-            onClick={() => void loadPage(communities.length === 0)}
-            disabled={loading}
-            className="mt-4"
-          >
-            {loading ? "Retrying…" : "Retry registry request"}
-          </AppButton>
+          {!factoryUnavailable && (
+            <AppButton
+              tone="danger"
+              onClick={() => void loadPage(communities.length === 0)}
+              disabled={loading}
+              className="mt-4"
+            >
+              {loading ? "Retrying…" : "Retry registry request"}
+            </AppButton>
+          )}
         </section>
       )}
 

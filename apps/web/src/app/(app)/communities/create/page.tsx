@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { CommunityDeploymentPanel } from "@/components/CommunityDeploymentPanel";
 import { AppButton } from "@/components/ui/AppButton";
@@ -23,6 +24,7 @@ import {
   parseCommunityWizardDraft,
   type CommunityWizardStep,
 } from "@/lib/community/wizard";
+import { communityFactoryUnavailableMessage } from "@/lib/community/factory";
 import { communityDeploymentRecoveryKey } from "@/lib/community/deployment";
 import { contractIds } from "@/lib/stellar";
 import { resolveStellarNetworkId } from "@/lib/stellarExplorer";
@@ -58,6 +60,9 @@ const inputClassName =
 
 export default function CreateCommunityPage() {
   const network = resolveStellarNetworkId();
+  const searchParams = useSearchParams();
+  const factoryConfigured = Boolean(contractIds.communityFactory);
+  const factoryUnavailable = !factoryConfigured;
   const storageKey = communityWizardStorageKey(network);
   const recoveryKey = communityDeploymentRecoveryKey(network);
   const { address, connect, isConnecting } = useWallet();
@@ -87,6 +92,7 @@ export default function CreateCommunityPage() {
   const dirty = hydrated && isCommunityWizardDirty(wizardDraft);
 
   useEffect(() => {
+    if (factoryUnavailable) return;
     const timeout = window.setTimeout(() => {
       const stored = parseCommunityWizardDraft(
         sessionStorage.getItem(storageKey),
@@ -113,7 +119,7 @@ export default function CreateCommunityPage() {
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [network, storageKey]);
+  }, [factoryUnavailable, network, storageKey]);
 
   useEffect(() => {
     const update = () =>
@@ -127,6 +133,7 @@ export default function CreateCommunityPage() {
   }, [recoveryKey]);
 
   useEffect(() => {
+    if (factoryUnavailable) return;
     if (hydrated) {
       const nextDraft = {
         version: 1 as const,
@@ -141,7 +148,7 @@ export default function CreateCommunityPage() {
         sessionStorage.removeItem(storageKey);
       }
     }
-  }, [draft, governance, hydrated, step, storageKey, network]);
+  }, [draft, factoryUnavailable, governance, hydrated, step, storageKey, network]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -193,6 +200,7 @@ export default function CreateCommunityPage() {
   }, [address]);
 
   function updateField(field: keyof CommunityMetadataDraft, value: string) {
+    if (factoryUnavailable) return;
     setDraft((current) => ({ ...current, [field]: value }));
     setErrors((current) => {
       if (!current[field]) return current;
@@ -203,6 +211,7 @@ export default function CreateCommunityPage() {
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (factoryUnavailable) return;
     event.preventDefault();
     const nextErrors = validateCommunityMetadataDraft(draft);
     setErrors(nextErrors);
@@ -215,6 +224,7 @@ export default function CreateCommunityPage() {
   }
 
   function updateGovernanceField(field: keyof GovernanceDraft, value: string) {
+    if (factoryUnavailable) return;
     setGovernance((current) => ({ ...current, [field]: value }));
     setGovernanceErrors((current) => {
       if (!current[field]) return current;
@@ -225,6 +235,7 @@ export default function CreateCommunityPage() {
   }
 
   function handleGovernanceSubmit(event: FormEvent<HTMLFormElement>) {
+    if (factoryUnavailable) return;
     event.preventDefault();
     const nextErrors = validateGovernanceDraft(governance);
     setGovernanceErrors(nextErrors);
@@ -245,6 +256,7 @@ export default function CreateCommunityPage() {
   }
 
   function discardDraft() {
+    if (factoryUnavailable) return;
     if (
       dirty &&
       !window.confirm(
@@ -261,6 +273,38 @@ export default function CreateCommunityPage() {
     setConfirmed(false);
     setStep(1);
     window.setTimeout(() => pageTitleRef.current?.focus(), 0);
+  }
+
+  if (factoryUnavailable) {
+    return (
+      <div className="mx-auto w-full min-w-0 max-w-3xl px-4 py-10">
+        <Link
+          href="/communities"
+          className="text-sm text-indigo-300 hover:text-indigo-200"
+        >
+          ← Communities
+        </Link>
+        <div className="mt-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300">
+            Community creation
+          </p>
+          <h1 className="mt-2 text-2xl font-bold text-slate-100">
+            Community creation is temporarily unavailable
+          </h1>
+        </div>
+        <LiveStatus
+          tone="error"
+          className="mt-6 rounded-lg border border-rose-800/70 bg-rose-950/30 p-4 text-sm text-rose-200"
+        >
+          {communityFactoryUnavailableMessage(network)}
+        </LiveStatus>
+        <p className="mt-4 text-sm text-slate-400">
+          {searchParams.get("reason") === "factory-unavailable"
+            ? "You were redirected here because the community registry is not configured for this deployment."
+            : "Set NEXT_PUBLIC_COMMUNITY_FACTORY_CONTRACT_ID to enable multi-community creation."}
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -453,7 +497,7 @@ export default function CreateCommunityPage() {
               <div className="sm:col-span-2">
                 <dt className="text-sm text-slate-500">CommunityFactory contract</dt>
                 <dd className="mt-1 break-all font-mono text-sm text-slate-100">
-                  {contractIds.communityFactory || "Not configured"}
+                  {contractIds.communityFactory}
                 </dd>
               </div>
             </dl>
@@ -471,12 +515,6 @@ export default function CreateCommunityPage() {
                 {isConnecting ? "Connecting…" : "Connect wallet"}
               </AppButton>
             </div>
-          )}
-          {!contractIds.communityFactory && (
-            <LiveStatus tone="error" className="rounded-lg border border-rose-800/70 bg-rose-950/30 p-4 text-sm text-rose-200">
-              CommunityFactory is not configured for {network}. Set
-              NEXT_PUBLIC_COMMUNITY_FACTORY_CONTRACT_ID before deployment.
-            </LiveStatus>
           )}
 
           <label className="flex items-start gap-3 rounded-lg border border-slate-700 bg-[#0b0f19] p-4 text-sm text-slate-300">

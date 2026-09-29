@@ -4,13 +4,13 @@ NFT-gated DAO voting platform for Stellar project communities.
 
 ## Features
 
-- **Community NFT** — SEP-0050 membership tokens with IPFS metadata (OpenZeppelin `NonFungibleVotes`)
-- **Governor** — On-chain proposals and voting (OpenZeppelin `stellar-governance`)
-- **Web dashboard** — Wallet connect, mint, delegate, propose, vote (Next.js + Stellar Wallets Kit)
+- `**Community NFT`** — SEP-0050 membership tokens with IPFS metadata (OpenZeppelin `NonFungibleVotes`)
+- `**Governor** — On-chain proposals and voting (OpenZeppelin `stellar-governance`)
+- `**Web dashboard**` — Wallet connect, mint, delegate, propose, vote (Next.js + Stellar Wallets Kit)
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 20*
 - npm 11+
 
 To build and deploy the contracts, you will also need:
@@ -21,8 +21,8 @@ To build and deploy the contracts, you will also need:
 
 ## Run locally
 
-All npm commands must be run from the repository root. This project uses a
-single root lockfile for the `apps/web` workspace.
+All npm commands must be run from the repository root. This project uses
+a single root lockfile for the `apps/web` workspace.
 
 ### 1. Install dependencies
 
@@ -43,14 +43,14 @@ Set the contract IDs in `apps/web/.env.local`:
 ```dotenv
 NEXT_PUBLIC_STELLAR_NETWORK=testnet
 NEXT_PUBLIC_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
-NEXT_PUBLIC_COMMUNITY_FACTORY_CONTRACT_ID=<community-factory-contract-id>
-NEXT_PUBLIC_NFT_CONTRACT_ID=<community-nft-contract-id>
-NEXT_PUBLIC_GOVERNOR_CONTRACT_ID=<governor-contract-id>
+NEXT_PUBLIC_COMMUNITY_FACTORY_CONTRACT_ID<<community-factory-contract-id>
+NEXT_PUBLIC_NFT_CONTRACT_ID<<community-nft-contract-id>
+NEXT_PUBLIC_GOVERNOR_CONTRACT_ID<<governor-contract-id>
 # Optional gateway used to resolve ipfs:// community metadata and logos.
 NEXT_PUBLIC_IPFS_GATEWAY_URL=https://ipfs.io/ipfs/
 # Lower ledger boundary for proposal event discovery (Governor deploy ledger).
 # Example (testnet): NEXT_PUBLIC_GOVERNOR_START_LEDGER=1500000
-NEXT_PUBLIC_GOVERNOR_START_LEDGER=<governor-deploy-ledger>
+NEXT_PUBLIC_GOVERNOR_START_LEDGER<<governor-deploy-ledger>
 ```
 
 `NEXT_PUBLIC_GOVERNOR_START_LEDGER` must be a positive integer. Use the ledger
@@ -160,7 +160,7 @@ deployment use the same dependency graph.
 Add these environment variables in the Vercel project settings:
 
 | Variable | Value |
-|----------|-------|
+|---------|-------|
 | `NEXT_PUBLIC_STELLAR_NETWORK` | `testnet` |
 | `NEXT_PUBLIC_STELLAR_RPC_URL` | `https://soroban-testnet.stellar.org` |
 | `NEXT_PUBLIC_COMMUNITY_FACTORY_CONTRACT_ID` | From the factory deployment |
